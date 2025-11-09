@@ -1,13 +1,13 @@
 #ifndef SET_H
 #define SET_H
 #include <string>
-#include <unordered_set>
+#include <set>
 
 using namespace std;
 
 class Set {
 private:
-    unordered_set<string> data;
+    set<string> data;
     string name;
 
 public:
@@ -18,8 +18,8 @@ public:
     bool SREM(const string& value);
     bool SISMEMBER(const string& value) const;
 
-    const unordered_set<string>& getData() const;
-    void setData(const unordered_set<string>& newData);
+    const set<string>& getData() const;
+    void setData(const set<string>& newData);
     const string& getName() const;
 };
 
