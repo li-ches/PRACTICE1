@@ -26,11 +26,11 @@ bool HashTable::contains(const string& key) const {
     return data.find(key) != data.end();
 }
 
-const unordered_map<string, string>& HashTable::getData() const {
+const map<string, string>& HashTable::getData() const {
     return data;
 }
 
-void HashTable::setData(const unordered_map<string, string>& newData) {
+void HashTable::setData(const map<string, string>& newData) {
     data = newData;
 }
 
