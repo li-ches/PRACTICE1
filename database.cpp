@@ -8,44 +8,45 @@ Database::Database(const string& dbFilename) : filename(dbFilename) {
     if (filename.empty()) {
         throw invalid_argument("Имя файла базы данных не может быть пустым");
     }
+    //загрузка сущ. данных
     loadFromFile();
 }
-
+//функция разделения строки
 vector<string> Database::split(const string& str, char delimiter) {
     vector<string> tokens;
     string token;
     istringstream tokenStream(str);
     while (getline(tokenStream, token, delimiter)) {
-        string trimmed = trim(token);
+        string trimmed = trim(token); //удаление пробелов
         if (!trimmed.empty()) {
             tokens.push_back(trimmed);
         }
     }
     return tokens;
 }
-
+//функция обрезания пробелов с начала и конца
 string Database::trim(const string& str) {
     size_t start = str.find_first_not_of(" \t\n\r");
-    if (start == string::npos) return "";
+    if (start == string::npos) return "";//если строка состоит только из пробелов, возвращает строку
     size_t end = str.find_last_not_of(" \t\n\r");
     return str.substr(start, end - start + 1);
 }
-
+//проверка корректности имени
 bool Database::isValidName(const string& name) {
     if (name.empty()) return false;
     for (char c : name) {
-        if (!isalnum(c) && c != '_') {
+        if (!isalnum(c) && c != '_') {//символ нЕ буква, нЕ цифра и нЕ подчеркивание
             return false;
         }
     }
     return true;
 }
-
+//проверка корректности значения
 bool Database::isValidValue(const string& value) {
     return !value.empty();
 }
 
-// Set operations
+//Операции множества
 string Database::SADD(const string& setName, const string& value) {
     if (!isValidName(setName)) return "ОШИБКА: Неверное имя множества";
     if (!isValidValue(value)) return "ОШИБКА: Неверное значение";
@@ -82,7 +83,7 @@ string Database::SISMEMBER(const string& setName, const string& value) {
     return sets[setName].SISMEMBER(value) ? "TRUE" : "FALSE";
 }
 
-// Stack operations
+//Операции стека
 string Database::SPUSH(const string& stackName, const string& value) {
     if (!isValidName(stackName)) return "ОШИБКА: Неверное имя стека";
     if (!isValidValue(value)) return "ОШИБКА: Неверное значение";
@@ -109,7 +110,7 @@ string Database::SPOP(const string& stackName) {
     return result;
 }
 
-// Queue operations
+//Операции очереди
 string Database::QPUSH(const string& queueName, const string& value) {
     if (!isValidName(queueName)) return "ОШИБКА: Неверное имя очереди";
     if (!isValidValue(value)) return "ОШИБКА: Неверное значение";
@@ -136,7 +137,7 @@ string Database::QPOP(const string& queueName) {
     return result;
 }
 
-// Hash table operations
+//Операции хэш-таблицы
 string Database::HSET(const string& hashName, const string& key, const string& value) {
     if (!isValidName(hashName)) return "ОШИБКА: Неверное имя хэш-таблицы";
     if (!isValidValue(key)) return "ОШИБКА: Неверный ключ";
@@ -183,7 +184,7 @@ bool Database::saveToFile() {
         return false;
     }
 
-    // Save sets
+    //Сохранение множества
     for (const auto& pair : sets) {
         const auto& set = pair.second;
         file << "SET " << set.getName();
@@ -193,7 +194,7 @@ bool Database::saveToFile() {
         file << "\n";
     }
 
-    // Save stacks
+    //Сохранение стека
     for (const auto& pair : stacks) {
         const auto& stack = pair.second;
         file << "STACK " << stack.getName();
@@ -203,7 +204,7 @@ bool Database::saveToFile() {
         file << "\n";
     }
 
-    // Save queues
+    //Сохранение очереди
     for (const auto& pair : queues) {
         const auto& queue = pair.second;
         file << "QUEUE " << queue.getName();
@@ -213,7 +214,7 @@ bool Database::saveToFile() {
         file << "\n";
     }
 
-    // Save hash tables
+    //Сохранение хэш-таблицы
     for (const auto& pair : hashTables) {
         const auto& hash = pair.second;
         file << "HASH " << hash.getName();
@@ -226,7 +227,7 @@ bool Database::saveToFile() {
     file.close();
     return true;
 }
-
+//Загрузка данных из файла
 bool Database::loadFromFile() {
     ifstream file(filename);
     if (!file.is_open()) {
@@ -246,7 +247,7 @@ bool Database::loadFromFile() {
 
         if (type == "SET") {
             Set newSet(name);
-            unordered_set<string> setData;
+            set<string> setData;
             for (size_t i = 2; i < parts.size(); i++) {
                 setData.insert(parts[i]);
             }
@@ -273,7 +274,7 @@ bool Database::loadFromFile() {
         }
         else if (type == "HASH") {
             HashTable newHash(name);
-            unordered_map<string, string> hashData;
+            map<string, string> hashData;
             for (size_t i = 2; i < parts.size(); i++) {
                 size_t colonPos = parts[i].find(':');
                 if (colonPos != string::npos) {
