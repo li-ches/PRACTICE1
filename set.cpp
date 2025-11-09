@@ -20,11 +20,11 @@ bool Set::SISMEMBER(const string& value) const {
     return data.find(value) != data.end();
 }
 
-const unordered_set<string>& Set::getData() const {
+const set<string>& Set::getData() const {
     return data;
 }
 
-void Set::setData(const unordered_set<string>& newData) {
+void Set::setData(const set<string>& newData) {
     data = newData;
 }
 
