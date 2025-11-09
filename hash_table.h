@@ -2,13 +2,13 @@
 #define HASH_TABLE_H
 
 #include <string>
-#include <unordered_map>
+#include <map>
 
 using namespace std;
 
 class HashTable {
 private:
-    unordered_map<string, string> data;
+    map<string, string> data;
     string name;
 
 public:
@@ -20,8 +20,8 @@ public:
     string HGET(const string& key) const;
     bool contains(const string& key) const;
 
-    const unordered_map<string, string>& getData() const;
-    void setData(const unordered_map<string, string>& newData);
+    const map<string, string>& getData() const;
+    void setData(const map<string, string>& newData);
     const string& getName() const;
 };
 
