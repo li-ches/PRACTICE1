@@ -1,28 +1,67 @@
-#ifndef HASH_TABLE_H
-#define HASH_TABLE_H
+#ifndef HASH_TABLES_H
+#define HASH_TABLES_H
 
 #include <string>
-#include <map>
+#include <iostream>
 
 using namespace std;
 
-class HashTable {
+//метод цепочек
+
+class HashNode {
+public:
+    string key;
+    string value;
+    HashNode* next;
+};
+
+class HashTableChaining {
 private:
-    map<string, string> data;
+    friend class Database;
+
     string name;
+    HashNode** table;
+    int size;
+
+    int hashFunction(const string& key) const;
 
 public:
-    HashTable();
-    HashTable(const string& hashName);
+    HashTableChaining(string tableName, int tableSize);
+    ~HashTableChaining();
 
-    bool HSET(const string& key, const string& value);
-    bool HDEL(const string& key);
-    string HGET(const string& key) const;
-    bool contains(const string& key) const;
+    void insert(const string& key, const string& value);
+    bool remove(const string& key);
+    string search(const string& key) const;
+    void visualize() const;
 
-    const map<string, string>& getData() const;
-    void setData(const map<string, string>& newData);
-    const string& getName() const;
+    //Геттер имени
+    const string& getName() const { return name; }
+};
+
+//открытая адресация
+
+class HashEntry {
+public:
+    string key;
+    string value;
+    bool occupied;
+};
+
+class HashTableOpenAddressing {
+private:
+    HashEntry* table;
+    int size;
+
+    int hashFunction(const string& key) const;
+
+public:
+    HashTableOpenAddressing(int tableSize);
+    ~HashTableOpenAddressing();
+
+    void insert(const string& key, const string& value);
+    bool remove(const string& key);
+    string search(const string& key) const;
+    void visualize() const;
 };
 
 #endif
