@@ -1,61 +1,149 @@
 #include "database.h"
-#include <fstream>
-#include <sstream>
-#include <iostream>
-#include <algorithm>
 
+// Конструктор
 Database::Database(const string& dbFilename) : filename(dbFilename) {
-    if (filename.empty()) {
-        throw invalid_argument("Имя файла базы данных не может быть пустым");
-    }
-    //загрузка сущ. данных
+    setsCapacity = 10; setsCount = 0; sets = new Set*[setsCapacity];
+    stackCapacity = 10; stackCount = 0; stacks = new Stack*[stackCapacity];
+    queueCapacity = 10; queueCount = 0; queues = new Queue*[queueCapacity];
+    hashCapacity = 10; hashCount = 0; hashTables = new HashTableChaining*[hashCapacity];
+
     loadFromFile();
 }
-//функция разделения строки
-vector<string> Database::split(const string& str, char delimiter) {
-    vector<string> tokens;
-    string token;
-    istringstream tokenStream(str);
-    while (getline(tokenStream, token, delimiter)) {
-        string trimmed = trim(token); //удаление пробелов
-        if (!trimmed.empty()) {
-            tokens.push_back(trimmed);
-        }
+
+// Деструктор
+Database::~Database() {
+    clearMemory();
+}
+
+// Очистка памяти
+void Database::clearMemory() {
+    for (int i = 0; i < setsCount; ++i) delete sets[i];
+    delete[] sets;
+
+    for (int i = 0; i < stackCount; ++i) delete stacks[i];
+    delete[] stacks;
+
+    for (int i = 0; i < queueCount; ++i) delete queues[i];
+    delete[] queues;
+
+    for (int i = 0; i < hashCount; ++i) delete hashTables[i];
+    delete[] hashTables;
+}
+
+// Парсер
+string Database::getNextWord(const string& str, int& pos) {
+    while (pos < (int)str.length() && (str[pos] == ' ' || str[pos] == '\t' || str[pos] == '\n' || str[pos] == '\r')) {
+        pos++;
     }
-    return tokens;
+
+    if (pos >= (int)str.length()) return "";
+
+    int start = pos;
+    while (pos < (int)str.length() && str[pos] != ' ' && str[pos] != '\t' && str[pos] != '\n' && str[pos] != '\r') {
+        pos++;
+    }
+
+    return str.substr(start, pos - start);
 }
-//функция обрезания пробелов с начала и конца
-string Database::trim(const string& str) {
-    size_t start = str.find_first_not_of(" \t\n\r");
-    if (start == string::npos) return "";//если строка состоит только из пробелов, возвращает строку
-    size_t end = str.find_last_not_of(" \t\n\r");
-    return str.substr(start, end - start + 1);
+
+//Вспомогательные методы
+
+void Database::addSet(Set* newSet) {
+    if (setsCount == setsCapacity) {
+        setsCapacity *= 2;
+        Set** temp = new Set*[setsCapacity];
+        for (int i = 0; i < setsCount; ++i) temp[i] = sets[i];
+        delete[] sets;
+        sets = temp;
+    }
+    sets[setsCount++] = newSet;
 }
-//проверка корректности имени
+
+void Database::addStack(Stack* newStack) {
+    if (stackCount == stackCapacity) {
+        stackCapacity *= 2;
+        Stack** temp = new Stack*[stackCapacity];
+        for (int i = 0; i < stackCount; ++i) temp[i] = stacks[i];
+        delete[] stacks;
+        stacks = temp;
+    }
+    stacks[stackCount++] = newStack;
+}
+
+void Database::addQueue(Queue* newQueue) {
+    if (queueCount == queueCapacity) {
+        queueCapacity *= 2;
+        Queue** temp = new Queue*[queueCapacity];
+        for (int i = 0; i < queueCount; ++i) temp[i] = queues[i];
+        delete[] queues;
+        queues = temp;
+    }
+    queues[queueCount++] = newQueue;
+}
+
+void Database::addHashTable(HashTableChaining* newHash) {
+    if (hashCount == hashCapacity) {
+        hashCapacity *= 2;
+        HashTableChaining** temp = new HashTableChaining*[hashCapacity];
+        for (int i = 0; i < hashCount; ++i) temp[i] = hashTables[i];
+        delete[] hashTables;
+        hashTables = temp;
+    }
+    hashTables[hashCount++] = newHash;
+}
+
+// Поиск
+
+Set* Database::findSet(const string& name) {
+    for (int i = 0; i < setsCount; ++i) {
+        if (sets[i]->getName() == name) return sets[i];
+    }
+    return nullptr;
+}
+
+Stack* Database::findStack(const string& name) {
+    for (int i = 0; i < stackCount; ++i) {
+        if (stacks[i]->getName() == name) return stacks[i];
+    }
+    return nullptr;
+}
+
+Queue* Database::findQueue(const string& name) {
+    for (int i = 0; i < queueCount; ++i) {
+        if (queues[i]->getName() == name) return queues[i];
+    }
+    return nullptr;
+}
+
+HashTableChaining* Database::findHashTable(const string& name) {
+    for (int i = 0; i < hashCount; ++i) {
+        if (hashTables[i]->getName() == name) return hashTables[i];
+    }
+    return nullptr;
+}
+
+// Валидация
 bool Database::isValidName(const string& name) {
     if (name.empty()) return false;
     for (char c : name) {
-        if (!isalnum(c) && c != '_') {//символ нЕ буква, нЕ цифра и нЕ подчеркивание
-            return false;
-        }
+        if (!isalnum(c) && c != '_') return false;
     }
     return true;
 }
-//проверка корректности значения
-bool Database::isValidValue(const string& value) {
-    return !value.empty();
-}
 
-//Операции множества
+//Реализация операций
+
 string Database::SADD(const string& setName, const string& value) {
-    if (!isValidName(setName)) return "ОШИБКА: Неверное имя множества";
-    if (!isValidValue(value)) return "ОШИБКА: Неверное значение";
+    if (!isValidName(setName)) return "ОШИБКА: Некорректное имя";
+    if (value.empty()) return "ОШИБКА: Пустое значение";
 
-    if (sets.find(setName) == sets.end()) {
-        sets[setName] = Set(setName);
+    Set* s = findSet(setName);
+    if (!s) {
+        s = new Set(setName);
+        addSet(s);
     }
-    bool result = sets[setName].SADD(value);
-    if (result) {
+
+    if (s->SADD(value)) {
         saveToFile();
         return value;
     }
@@ -63,12 +151,8 @@ string Database::SADD(const string& setName, const string& value) {
 }
 
 string Database::SREM(const string& setName, const string& value) {
-    if (!isValidName(setName)) return "ОШИБКА: Неверное имя множества";
-    if (!isValidValue(value)) return "ОШИБКА: Неверное значение";
-
-    if (sets.find(setName) == sets.end()) return "FALSE";
-    bool result = sets[setName].SREM(value);
-    if (result) {
+    Set* s = findSet(setName);
+    if (s && s->SREM(value)) {
         saveToFile();
         return value;
     }
@@ -76,91 +160,79 @@ string Database::SREM(const string& setName, const string& value) {
 }
 
 string Database::SISMEMBER(const string& setName, const string& value) {
-    if (!isValidName(setName)) return "ОШИБКА: Неверное имя множества";
-    if (!isValidValue(value)) return "ОШИБКА: Неверное значение";
-
-    if (sets.find(setName) == sets.end()) return "FALSE";
-    return sets[setName].SISMEMBER(value) ? "TRUE" : "FALSE";
-}
-
-//Операции стека
-string Database::SPUSH(const string& stackName, const string& value) {
-    if (!isValidName(stackName)) return "ОШИБКА: Неверное имя стека";
-    if (!isValidValue(value)) return "ОШИБКА: Неверное значение";
-
-    if (stacks.find(stackName) == stacks.end()) {
-        stacks[stackName] = Stack(stackName);
-    }
-    bool result = stacks[stackName].SPUSH(value);
-    if (result) {
-        saveToFile();
-        return value;
-    }
-    return "ОШИБКА: Не удалось добавить в стек";
-}
-
-string Database::SPOP(const string& stackName) {
-    if (!isValidName(stackName)) return "ОШИБКА: Неверное имя стека";
-
-    if (stacks.find(stackName) == stacks.end() || stacks[stackName].isEmpty()) {
-        return "ОШИБКА: Стек пуст или не существует";
-    }
-    string result = stacks[stackName].SPOP();
-    saveToFile();
-    return result;
-}
-
-//Операции очереди
-string Database::QPUSH(const string& queueName, const string& value) {
-    if (!isValidName(queueName)) return "ОШИБКА: Неверное имя очереди";
-    if (!isValidValue(value)) return "ОШИБКА: Неверное значение";
-
-    if (queues.find(queueName) == queues.end()) {
-        queues[queueName] = Queue(queueName);
-    }
-    bool result = queues[queueName].QPUSH(value);
-    if (result) {
-        saveToFile();
-        return value;
-    }
-    return "ОШИБКА: Не удалось добавить в очередь";
-}
-
-string Database::QPOP(const string& queueName) {
-    if (!isValidName(queueName)) return "ОШИБКА: Неверное имя очереди";
-
-    if (queues.find(queueName) == queues.end() || queues[queueName].isEmpty()) {
-        return "ОШИБКА: Очередь пуста или не существует";
-    }
-    string result = queues[queueName].QPOP();
-    saveToFile();
-    return result;
-}
-
-//Операции хэш-таблицы
-string Database::HSET(const string& hashName, const string& key, const string& value) {
-    if (!isValidName(hashName)) return "ОШИБКА: Неверное имя хэш-таблицы";
-    if (!isValidValue(key)) return "ОШИБКА: Неверный ключ";
-    if (!isValidValue(value)) return "ОШИБКА: Неверное значение";
-
-    if (hashTables.find(hashName) == hashTables.end()) {
-        hashTables[hashName] = HashTable(hashName);
-    }
-    bool result = hashTables[hashName].HSET(key, value);
-    if (result) {
-        saveToFile();
-        return value;
-    }
+    Set* s = findSet(setName);
+    if (s && s->SISMEMBER(value)) return "TRUE";
     return "FALSE";
 }
 
-string Database::HDEL(const string& hashName, const string& key) {
-    if (!isValidName(hashName)) return "ОШИБКА: Неверное имя хэш-таблицы";
-    if (!isValidValue(key)) return "ОШИБКА: Неверный ключ";
+string Database::SPUSH(const string& stackName, const string& value) {
+    if (!isValidName(stackName)) return "ОШИБКА: Некорректное имя";
 
-    if (hashTables.find(hashName) == hashTables.end()) return "FALSE";
-    bool result = hashTables[hashName].HDEL(key);
-    if (result) {
+    Stack* s = findStack(stackName);
+    if (!s) {
+        s = new Stack(stackName);
+        addStack(s);
+    }
+
+    if (s->SPUSH(value)) {
+        saveToFile();
+        return value;
+    }
+    return "ОШИБКА";
+}
+
+string Database::SPOP(const string& stackName) {
+    Stack* s = findStack(stackName);
+    if (!s || s->isEmpty()) return "ОШИБКА: Стек пуст или не существует";
+
+    string val = s->SPOP();
+    saveToFile();
+    return val;
+}
+
+string Database::QPUSH(const string& queueName, const string& value) {
+    if (!isValidName(queueName)) return "ОШИБКА: Некорректное имя";
+
+    Queue* q = findQueue(queueName);
+    if (!q) {
+        q = new Queue(queueName);
+        addQueue(q);
+    }
+
+    if (q->QPUSH(value)) {
+        saveToFile();
+        return value;
+    }
+    return "ОШИБКА";
+}
+
+string Database::QPOP(const string& queueName) {
+    Queue* q = findQueue(queueName);
+    if (!q || q->isEmpty()) return "ОШИБКА: Очередь пуста или не существует";
+
+    string val = q->QPOP();
+    saveToFile();
+    return val;
+}
+
+string Database::HSET(const string& hashName, const string& key, const string& value) {
+    if (!isValidName(hashName)) return "ОШИБКА: Некорректное имя";
+
+    HashTableChaining* ht = findHashTable(hashName);
+    if (!ht) {
+        // Используем размер таблицы 20 по умолчанию
+        ht = new HashTableChaining(hashName, 20);
+        addHashTable(ht);
+    }
+
+    ht->insert(key, value);
+    saveToFile();
+    return value;
+}
+
+string Database::HDEL(const string& hashName, const string& key) {
+    HashTableChaining* ht = findHashTable(hashName);
+    if (ht && ht->remove(key)) {
         saveToFile();
         return key;
     }
@@ -168,180 +240,147 @@ string Database::HDEL(const string& hashName, const string& key) {
 }
 
 string Database::HGET(const string& hashName, const string& key) {
-    if (!isValidName(hashName)) return "ОШИБКА: Неверное имя хэш-таблицы";
-    if (!isValidValue(key)) return "ОШИБКА: Неверный ключ";
-
-    if (hashTables.find(hashName) == hashTables.end()) {
-        return "ОШИБКА: Хэш-таблица не существует";
+    HashTableChaining* ht = findHashTable(hashName);
+    if (ht) {
+        string val = ht->search(key);
+        if (val.empty()) return "ОШИБКА: Ключ не найден";
+        return val;
     }
-    return hashTables[hashName].HGET(key);
+    return "ОШИБКА: Хеш-таблица не найдена";
 }
 
+//Сохранение в файл
 bool Database::saveToFile() {
     ofstream file(filename);
-    if (!file.is_open()) {
-        cerr << "Ошибка: Не удалось открыть файл для записи: " << filename << endl;
-        return false;
+    if (!file.is_open()) return false;
+
+    for (int i = 0; i < setsCount; ++i) {
+        file << "SET " << sets[i]->getName();
+        for (string* ptr = sets[i]->begin(); ptr != sets[i]->end(); ++ptr) {
+            file << " " << *ptr;
+        }
+        file << endl;
     }
 
-    //Сохранение множества
-    for (const auto& pair : sets) {
-        const auto& set = pair.second;
-        file << "SET " << set.getName();
-        for (const auto& value : set.getData()) {
-            file << " " << value;
+    for (int i = 0; i < stackCount; ++i) {
+        file << "STACK " << stacks[i]->getName();
+        for (string* ptr = stacks[i]->begin(); ptr != stacks[i]->end(); ++ptr) {
+            file << " " << *ptr;
         }
-        file << "\n";
+        file << endl;
     }
 
-    //Сохранение стека
-    for (const auto& pair : stacks) {
-        const auto& stack = pair.second;
-        file << "STACK " << stack.getName();
-        for (const auto& value : stack.getData()) {
-            file << " " << value;
+    for (int i = 0; i < queueCount; ++i) {
+        file << "QUEUE " << queues[i]->getName();
+        for (string* ptr = queues[i]->begin(); ptr != queues[i]->end(); ++ptr) {
+            file << " " << *ptr;
         }
-        file << "\n";
+        file << endl;
     }
 
-    //Сохранение очереди
-    for (const auto& pair : queues) {
-        const auto& queue = pair.second;
-        file << "QUEUE " << queue.getName();
-        for (const auto& value : queue.getData()) {
-            file << " " << value;
+    // Сохранение HashTableChaining
+    for (int i = 0; i < hashCount; ++i) {
+        file << "HASH " << hashTables[i]->getName();
+        HashTableChaining* ht = hashTables[i];
+        for (int j = 0; j < ht->size; ++j) {
+            HashNode* current = ht->table[j];
+            while (current != nullptr) {
+                file << " " << current->key << ":" << current->value;
+                current = current->next;
+            }
         }
-        file << "\n";
-    }
-
-    //Сохранение хэш-таблицы
-    for (const auto& pair : hashTables) {
-        const auto& hash = pair.second;
-        file << "HASH " << hash.getName();
-        for (const auto& kv : hash.getData()) {
-            file << " " << kv.first << ":" << kv.second;
-        }
-        file << "\n";
+        file << endl;
     }
 
     file.close();
     return true;
 }
-//Загрузка данных из файла
+
+//Загрузка из файла
 bool Database::loadFromFile() {
     ifstream file(filename);
-    if (!file.is_open()) {
-        return true;
-    }
+    if (!file.is_open()) return true;
 
     string line;
     while (getline(file, line)) {
-        line = trim(line);
-        if (line.empty()) continue;
+        int pos = 0;
+        string type = getNextWord(line, pos);
+        if (type.empty()) continue;
 
-        vector<string> parts = split(line, ' ');
-        if (parts.size() < 2) continue;
-
-        string type = parts[0];
-        string name = parts[1];
+        string name = getNextWord(line, pos);
+        if (name.empty()) continue;
 
         if (type == "SET") {
-            Set newSet(name);
-            set<string> setData;
-            for (size_t i = 2; i < parts.size(); i++) {
-                setData.insert(parts[i]);
+            Set* s = new Set(name);
+            addSet(s);
+            while (true) {
+                string val = getNextWord(line, pos);
+                if (val.empty()) break;
+                s->SADD(val);
             }
-            newSet.setData(setData);
-            sets[name] = newSet;
         }
         else if (type == "STACK") {
-            Stack newStack(name);
-            vector<string> stackData;
-            for (size_t i = 2; i < parts.size(); i++) {
-                stackData.push_back(parts[i]);
+            Stack* s = new Stack(name);
+            addStack(s);
+            while (true) {
+                string val = getNextWord(line, pos);
+                if (val.empty()) break;
+                s->SPUSH(val);
             }
-            newStack.setData(stackData);
-            stacks[name] = newStack;
         }
         else if (type == "QUEUE") {
-            Queue newQueue(name);
-            deque<string> queueData;
-            for (size_t i = 2; i < parts.size(); i++) {
-                queueData.push_back(parts[i]);
+            Queue* q = new Queue(name);
+            addQueue(q);
+            while (true) {
+                string val = getNextWord(line, pos);
+                if (val.empty()) break;
+                q->QPUSH(val);
             }
-            newQueue.setData(queueData);
-            queues[name] = newQueue;
         }
         else if (type == "HASH") {
-            HashTable newHash(name);
-            map<string, string> hashData;
-            for (size_t i = 2; i < parts.size(); i++) {
-                size_t colonPos = parts[i].find(':');
-                if (colonPos != string::npos) {
-                    string key = parts[i].substr(0, colonPos);
-                    string value = parts[i].substr(colonPos + 1);
-                    hashData[key] = value;
+            // Создаем HashTableChaining
+            HashTableChaining* ht = new HashTableChaining(name, 20);
+            addHashTable(ht);
+            while (true) {
+                string pair = getNextWord(line, pos);
+                if (pair.empty()) break;
+
+                size_t colon = pair.find(':');
+                if (colon != string::npos) {
+                    string k = pair.substr(0, colon);
+                    string v = pair.substr(colon + 1);
+                    ht->insert(k, v);
                 }
             }
-            newHash.setData(hashData);
-            hashTables[name] = newHash;
         }
     }
-
     file.close();
     return true;
 }
 
+// Обработка запроса
 string Database::executeQuery(const string& query) {
-    string trimmedQuery = trim(query);
-    if (trimmedQuery.empty()) return "ОШИБКА: Пустой запрос";
+    int pos = 0;
+    string op = getNextWord(query, pos);
+    string name = getNextWord(query, pos);
+    string arg1 = getNextWord(query, pos);
+    string arg2 = getNextWord(query, pos);
 
-    vector<string> parts = split(trimmedQuery, ' ');
-    if (parts.size() < 2) return "ОШИБКА: Неверный формат запроса";
+    if (op.empty() || name.empty()) return "ОШИБКА: Неверный формат запроса";
 
-    string operation = parts[0];
-    string containerName = parts[1];
+    if (op == "SADD") return SADD(name, arg1);
+    if (op == "SREM") return SREM(name, arg1);
+    if (op == "SISMEMBER") return SISMEMBER(name, arg1);
 
-    if (operation == "SADD") {
-        if (parts.size() != 3) return "ОШИБКА: SADD требует 2 аргумента";
-        return SADD(containerName, parts[2]);
-    }
-    else if (operation == "SREM") {
-        if (parts.size() != 3) return "ОШИБКА: SREM требует 2 аргумента";
-        return SREM(containerName, parts[2]);
-    }
-    else if (operation == "SISMEMBER") {
-        if (parts.size() != 3) return "ОШИБКА: SISMEMBER требует 2 аргумента";
-        return SISMEMBER(containerName, parts[2]);
-    }
-    else if (operation == "SPUSH") {
-        if (parts.size() != 3) return "ОШИБКА: SPUSH требует 2 аргумента";
-        return SPUSH(containerName, parts[2]);
-    }
-    else if (operation == "SPOP") {
-        if (parts.size() != 2) return "ОШИБКА: SPOP требует 1 аргумент";
-        return SPOP(containerName);
-    }
-    else if (operation == "QPUSH") {
-        if (parts.size() != 3) return "ОШИБКА: QPUSH требует 2 аргумента";
-        return QPUSH(containerName, parts[2]);
-    }
-    else if (operation == "QPOP") {
-        if (parts.size() != 2) return "ОШИБКА: QPOP требует 1 аргумент";
-        return QPOP(containerName);
-    }
-    else if (operation == "HSET") {
-        if (parts.size() != 4) return "ОШИБКА: HSET требует 3 аргумента";
-        return HSET(containerName, parts[2], parts[3]);
-    }
-    else if (operation == "HDEL") {
-        if (parts.size() != 3) return "ОШИБКА: HDEL требует 2 аргумента";
-        return HDEL(containerName, parts[2]);
-    }
-    else if (operation == "HGET") {
-        if (parts.size() != 3) return "ОШИБКА: HGET требует 2 аргумента";
-        return HGET(containerName, parts[2]);
-    }
+    if (op == "SPUSH") return SPUSH(name, arg1);
+    if (op == "SPOP") return SPOP(name);
 
-    return "ОШИБКА: Неизвестная операция '" + operation + "'";
+    if (op == "QPUSH") return QPUSH(name, arg1);
+    if (op == "QPOP") return QPOP(name);
+
+    if (op == "HSET") return HSET(name, arg1, arg2);
+    if (op == "HDEL") return HDEL(name, arg1);
+    if (op == "HGET") return HGET(name, arg1);
+
+    return "ОШИБКА: Неизвестная команда";
 }
