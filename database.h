@@ -2,49 +2,77 @@
 #define DATABASE_H
 
 #include <string>
-#include <vector>
-#include <map>
-#include "structures/set.h"
-#include "structures/stack.h"
-#include "structures/queue.h"
-#include "structures/hash_table.h"
+#include <iostream>
+#include <fstream>
+
+#include "set.h"
+#include "stack.h"
+#include "queue.h"
+#include "hash_table.h"
 
 using namespace std;
 
 class Database {
 private:
-    map<string, Set> sets;
-    map<string, Stack> stacks;
-    map<string, Queue> queues;
-    map<string, HashTable> hashTables;
     string filename;
 
-    vector<string> split(const string& str, char delimiter);
-    string trim(const string& str);
+    Set** sets;
+    int setsCount;
+    int setsCapacity;
+
+    Stack** stacks;
+    int stackCount;
+    int stackCapacity;
+
+    Queue** queues;
+    int queueCount;
+    int queueCapacity;
+
+    //HashTableChaining
+    HashTableChaining** hashTables;
+    int hashCount;
+    int hashCapacity;
+
+    //Вспомогательные методы
+    void addSet(Set* newSet);
+    void addStack(Stack* newStack);
+    void addQueue(Queue* newQueue);
+    void addHashTable(HashTableChaining* newHash);
+
+    //Поиск
+    Set* findSet(const string& name);
+    Stack* findStack(const string& name);
+    Queue* findQueue(const string& name);
+    HashTableChaining* findHashTable(const string& name);
+
+    //Парсинг
+    string getNextWord(const string& str, int& pos);
+
+    //Валидация
     bool isValidName(const string& name);
-    bool isValidValue(const string& value);
+
+    void clearMemory();
 
 public:
     Database(const string& dbFilename);
+    ~Database();
 
-    //операции множества
+    //Операции
     string SADD(const string& setName, const string& value);
     string SREM(const string& setName, const string& value);
     string SISMEMBER(const string& setName, const string& value);
 
-    //операции стека
     string SPUSH(const string& stackName, const string& value);
     string SPOP(const string& stackName);
 
-    //операции очереди
     string QPUSH(const string& queueName, const string& value);
     string QPOP(const string& queueName);
 
-    //операции хэш-таблицы
     string HSET(const string& hashName, const string& key, const string& value);
     string HDEL(const string& hashName, const string& key);
     string HGET(const string& hashName, const string& key);
 
+    //Файлы
     bool saveToFile();
     bool loadFromFile();
 
